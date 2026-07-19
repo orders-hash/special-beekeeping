@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Move Inventory</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <h1><span class="tag">HH-GOODS</span>Move Inventory</h1>
+  <div class="row no-print" style="flex:0;">
+    <button class="secondary" onclick="toggleAddForm()">+ New Bin</button>
+    <button class="secondary" onclick="signOut()">Sign Out</button>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="searchbar">
+    <input type="text" id="searchInput" placeholder="Search bins, items, rooms...">
+    <button class="secondary" onclick="doSearch()">Search</button>
+  </div>
+
+  <div class="panel" id="addPanel" style="display:none;">
+    <div class="field">
+      <label>Bin label</label>
+      <input type="text" id="newLabel" placeholder="e.g. Kitchen &ndash; pots &amp; pans">
+    </div>
+    <div class="row">
+      <div class="field">
+        <label>Room / destination</label>
+        <input type="text" id="newRoom" placeholder="e.g. Kitchen">
+      </div>
+      <div class="field">
+        <label>Notes</label>
+        <input type="text" id="newNotes" placeholder="fragile, priority unpack, etc">
+      </div>
+    </div>
+    <button onclick="createBin()">Create Bin &amp; Generate QR</button>
+    <div class="status" id="addStatus"></div>
+  </div>
+
+  <div id="binGrid" class="bin-grid"></div>
+  <div id="emptyState" class="empty" style="display:none;">No bins yet. Hit "+ New Bin" to start packing.</div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script>
+
+function toggleAddForm() {
+  const p = document.getElementById("addPanel");
+  p.style.display = p.style.display === "none" ? "block" : "none";
+}
+
+async function createBin() {
+  const label = document.getElementById("newLabel").value.trim();
+  const room = document.getElementById("newRoom").value.trim();
+  const notes = document.getElementById("newNotes").value.trim();
+  const status = document.getElementById("addStatus");
+  if (!label) { showStatus(status, "Give the bin a label first.", true); return; }
+
+  const { data, error } = await sb.from("bins").insert({ label, room, notes }).select().single();
+  if (error) { showStatus(status, error.message, true); return; }
+  window.location.href = `bin.html?id=${data.id}`;
+}
+
+async function loadBins(filter) {
+  const grid = document.getElementById("binGrid");
+  const empty = document.getElementById("emptyState");
+  grid.innerHTML = "";
+
+  const { data: bins, error } = await sb
+    .from("bins")
+    .select("id, label, room, notes, items(id, name)")
+    .order("id", { ascending: false });
+
+  if (error) { grid.innerHTML = `<div class="empty">Couldn't load bins: ${escapeHtml(error.message)}</div>`; return; }
+
+  const q = (filter || "").toLowerCase().trim();
+  const filtered = !q ? bins : bins.filter(b => {
+    const hay = [b.label, b.room, b.notes, ...(b.items || []).map(i => i.name)].join(" ").toLowerCase();
+    return hay.includes(q);
+  });
+
+  if (!filtered.length) {
+    empty.style.display = "block";
+    empty.textContent = q ? `No bins match "${filter}".` : 'No bins yet. Hit "+ New Bin" to start packing.';
+    return;
+  }
+  empty.style.display = "none";
+
+  filtered.forEach(b => {
+    const itemNames = (b.items || []).map(i => i.name);
+    const card = document.createElement("a");
+    card.href = `bin.html?id=${b.id}`;
+    card.className = "bin-card";
+    card.style.display = "block";
+    card.innerHTML = `
+      <div class="binno">BIN #${b.id}</div>
+      <h3>${escapeHtml(b.label)}</h3>
+      ${b.room ? `<div class="room">${escapeHtml(b.room)}</div>` : ""}
+      <div class="items">${itemNames.length ? escapeHtml(itemNames.slice(0,6).join(", ")) + (itemNames.length > 6 ? "..." : "") : "<em>no items logged yet</em>"}</div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function doSearch() {
+  loadBins(document.getElementById("searchInput").value);
+}
+document.getElementById("searchInput").addEventListener("input", (e) => loadBins(e.target.value));
+
+requireAuth().then((ok) => { if (ok) loadBins(""); });
+</script>
+</body>
+</html>

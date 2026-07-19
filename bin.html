@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bin Detail</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <h1><a href="index.html" style="color:inherit;">&larr; All Bins</a></h1>
+  <div class="row no-print" style="flex:0;">
+    <button class="secondary" onclick="window.print()">Print Label</button>
+    <button class="secondary" onclick="signOut()">Sign Out</button>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="panel">
+    <div class="field">
+      <label>Bin label</label>
+      <input type="text" id="binLabel">
+    </div>
+    <div class="row">
+      <div class="field">
+        <label>Room / destination</label>
+        <input type="text" id="binRoom">
+      </div>
+      <div class="field">
+        <label>Notes</label>
+        <input type="text" id="binNotes">
+      </div>
+    </div>
+    <button onclick="saveBinMeta()">Save</button>
+    <div class="status" id="metaStatus"></div>
+  </div>
+
+  <div class="panel">
+    <div class="field"><label>Items in this bin</label></div>
+    <ul class="item-list" id="itemList"></ul>
+    <div class="row no-print">
+      <input type="text" id="newItemName" placeholder="Add an item, press enter">
+      <button onclick="addItem()">Add</button>
+    </div>
+  </div>
+
+  <div class="panel no-print">
+    <div class="field"><label>Photos</label></div>
+    <div class="photo-grid" id="photoGrid"></div>
+    <input type="file" id="photoInput" accept="image/*" multiple>
+    <div class="status" id="photoStatus"></div>
+  </div>
+
+  <div class="qr-block">
+    <div id="qrCanvasWrap"></div>
+    <div style="margin-top:8px; font-size:13px;">Scan to open this bin's live page</div>
+  </div>
+
+  <!-- Print-only shipping label -->
+  <div class="print-label">
+    <div style="border:3px solid #000; padding:20px; max-width:400px; margin:0 auto; text-align:center;">
+      <div style="font-size:11px; letter-spacing:2px;">HOUSEHOLD GOODS &mdash; BIN #<span id="printId"></span></div>
+      <h2 id="printLabel" style="margin:10px 0 4px;"></h2>
+      <div id="printRoom" style="text-transform:uppercase; letter-spacing:1px; font-size:13px; margin-bottom:14px;"></div>
+      <div id="printQr"></div>
+      <div id="printNotes" style="margin-top:10px; font-size:12px;"></div>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script>
+
+const params = new URLSearchParams(window.location.search);
+const binId = params.get("id");
+if (!binId) { document.body.innerHTML = "<div class='wrap'>No bin id given.</div>"; }
+
+async function loadBin() {
+  const { data: bin, error } = await sb.from("bins").select("*").eq("id", binId).single();
+  if (error) { document.querySelector(".wrap").innerHTML = `<div class="empty">Couldn't load bin: ${escapeHtml(error.message)}</div>`; return; }
+
+  document.getElementById("binLabel").value = bin.label || "";
+  document.getElementById("binRoom").value = bin.room || "";
+  document.getElementById("binNotes").value = bin.notes || "";
+  document.getElementById("printId").textContent = bin.id;
+  document.getElementById("printLabel").textContent = bin.label || "";
+  document.getElementById("printRoom").textContent = bin.room || "";
+  document.getElementById("printNotes").textContent = bin.notes || "";
+
+  const url = binUrl(bin.id);
+  QRCode.toCanvas(document.createElement("canvas"), url, { width: 180 }, (err, canvas) => {
+    if (!err) { document.getElementById("qrCanvasWrap").innerHTML = ""; document.getElementById("qrCanvasWrap").appendChild(canvas); }
+  });
+  QRCode.toCanvas(document.createElement("canvas"), url, { width: 160 }, (err, canvas) => {
+    if (!err) { document.getElementById("printQr").innerHTML = ""; document.getElementById("printQr").appendChild(canvas); }
+  });
+
+  loadItems();
+  loadPhotos();
+}
+
+async function saveBinMeta() {
+  const status = document.getElementById("metaStatus");
+  const label = document.getElementById("binLabel").value.trim();
+  const room = document.getElementById("binRoom").value.trim();
+  const notes = document.getElementById("binNotes").value.trim();
+  if (!label) { showStatus(status, "Label can't be empty.", true); return; }
+  const { error } = await sb.from("bins").update({ label, room, notes }).eq("id", binId);
+  if (error) { showStatus(status, error.message, true); return; }
+  document.getElementById("printId").textContent = binId;
+  document.getElementById("printLabel").textContent = label;
+  document.getElementById("printRoom").textContent = room;
+  document.getElementById("printNotes").textContent = notes;
+  showStatus(status, "Saved.", false);
+}
+
+async function loadItems() {
+  const { data: items, error } = await sb.from("items").select("*").eq("bin_id", binId).order("id");
+  const list = document.getElementById("itemList");
+  list.innerHTML = "";
+  if (error) { list.innerHTML = `<li>${escapeHtml(error.message)}</li>`; return; }
+  if (!items.length) { list.innerHTML = "<li style='opacity:0.6;'>No items logged yet.</li>"; return; }
+  items.forEach(i => {
+    const li = document.createElement("li");
+    li.innerHTML = `<span>${escapeHtml(i.name)}</span>`;
+    const del = document.createElement("button");
+    del.className = "danger no-print";
+    del.textContent = "Remove";
+    del.onclick = () => deleteItem(i.id);
+    li.appendChild(del);
+    list.appendChild(li);
+  });
+}
+
+async function addItem() {
+  const input = document.getElementById("newItemName");
+  const name = input.value.trim();
+  if (!name) return;
+  const { error } = await sb.from("items").insert({ bin_id: binId, name });
+  if (!error) { input.value = ""; loadItems(); }
+}
+document.getElementById("newItemName").addEventListener("keydown", (e) => { if (e.key === "Enter") addItem(); });
+
+async function deleteItem(itemId) {
+  await sb.from("items").delete().eq("id", itemId);
+  loadItems();
+}
+
+async function loadPhotos() {
+  const { data: photos, error } = await sb.from("photos").select("*").eq("bin_id", binId).order("id");
+  const grid = document.getElementById("photoGrid");
+  grid.innerHTML = "";
+  if (error || !photos.length) return;
+  photos.forEach(p => {
+    const img = document.createElement("img");
+    img.src = publicPhotoUrl(p.storage_path);
+    img.onclick = () => window.open(img.src, "_blank");
+    grid.appendChild(img);
+  });
+}
+
+document.getElementById("photoInput").addEventListener("change", async (e) => {
+  const status = document.getElementById("photoStatus");
+  const files = Array.from(e.target.files);
+  for (const file of files) {
+    try {
+      showStatus(status, `Uploading ${file.name}...`, false);
+      await uploadPhoto(binId, file);
+    } catch (err) {
+      showStatus(status, err.message || String(err), true);
+      return;
+    }
+  }
+  showStatus(status, "Photos added.", false);
+  e.target.value = "";
+  loadPhotos();
+});
+
+requireAuth().then((ok) => { if (ok) loadBin(); });
+</script>
+</body>
+</html>
