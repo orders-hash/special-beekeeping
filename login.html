@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign In &mdash; Move Inventory</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <h1><span class="tag">HH-GOODS</span>Move Inventory</h1>
+</header>
+
+<div class="wrap" style="max-width:400px;">
+
+  <div class="panel">
+    <div class="field">
+      <label>Email</label>
+      <input type="text" id="email" placeholder="you@example.com">
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="text" id="password" placeholder="At least 6 characters" style="font-family:inherit;">
+    </div>
+    <div class="row">
+      <button onclick="signIn()">Sign In</button>
+      <button class="secondary" onclick="signUp()">Sign Up (first time only)</button>
+    </div>
+    <div class="status" id="authStatus"></div>
+  </div>
+
+  <p style="font-size:12px; color:var(--kraft-dark);">
+    First visit: click "Sign Up" once to create your account. Every visit after that, use "Sign In."
+  </p>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script>
+
+const params = new URLSearchParams(window.location.search);
+const redirectTo = params.get("redirect") || "index.html";
+
+async function signIn() {
+  const status = document.getElementById("authStatus");
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) { showStatus(status, error.message, true); return; }
+  window.location.href = redirectTo;
+}
+
+async function signUp() {
+  const status = document.getElementById("authStatus");
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+  if (password.length < 6) { showStatus(status, "Password needs at least 6 characters.", true); return; }
+  const { error } = await sb.auth.signUp({ email, password });
+  if (error) { showStatus(status, error.message, true); return; }
+  showStatus(status, "Account created. If email confirmation is on, check your inbox, then sign in.", false);
+}
+
+// If already signed in, skip straight through.
+sb.auth.getSession().then(({ data: { session } }) => {
+  if (session) window.location.href = redirectTo;
+});
+</script>
+</body>
+</html>
