@@ -51,6 +51,55 @@ function resizeImage(file, maxDim, quality) {
   });
 }
 
+// Edit this list any time to add/remove/reorder rooms in the dropdown.
+// Every page pulls from this one place, so a change here shows up everywhere.
+const ROOMS = [
+  "Master Bedroom",
+  "Secondary Bedroom",
+  "Master Bath",
+  "Secondary Bath",
+  "Kitchen",
+  "Living Room",
+  "Office",
+  "Garage",
+  "Shed"
+];
+
+// Builds a <select> of ROOMS plus an "Other" option. If currentValue isn't
+// in the list, it's treated as a custom value: "Other" is selected and the
+// paired text input (otherInputId) is shown pre-filled with currentValue.
+function populateRoomSelect(selectEl, otherInputEl, currentValue) {
+  selectEl.innerHTML = "";
+  ROOMS.forEach(r => {
+    const opt = document.createElement("option");
+    opt.value = r;
+    opt.textContent = r;
+    selectEl.appendChild(opt);
+  });
+  const otherOpt = document.createElement("option");
+  otherOpt.value = "__other__";
+  otherOpt.textContent = "Other (type below)";
+  selectEl.appendChild(otherOpt);
+
+  if (currentValue && !ROOMS.includes(currentValue)) {
+    selectEl.value = "__other__";
+    otherInputEl.style.display = "block";
+    otherInputEl.value = currentValue;
+  } else {
+    selectEl.value = currentValue || ROOMS[0];
+    otherInputEl.style.display = "none";
+  }
+
+  selectEl.onchange = () => {
+    otherInputEl.style.display = selectEl.value === "__other__" ? "block" : "none";
+    if (selectEl.value === "__other__") otherInputEl.focus();
+  };
+}
+
+function resolveRoomValue(selectEl, otherInputEl) {
+  return selectEl.value === "__other__" ? otherInputEl.value.trim() : selectEl.value;
+}
+
 function binUrl(binId) {
   const base = window.location.origin + window.location.pathname.replace(/index\.html$|bin\.html$/, "");
   return `${base}bin.html?id=${binId}`;

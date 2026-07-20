@@ -26,7 +26,8 @@
     <div class="row">
       <div class="field">
         <label>Room / destination</label>
-        <input type="text" id="binRoom">
+        <select id="binRoom"></select>
+        <input type="text" id="binRoomOther" placeholder="Type room name" style="display:none; margin-top:6px;">
       </div>
       <div class="field">
         <label>Notes</label>
@@ -86,7 +87,7 @@ async function loadBin() {
   if (error) { document.querySelector(".wrap").innerHTML = `<div class="empty">Couldn't load bin: ${escapeHtml(error.message)}</div>`; return; }
 
   document.getElementById("binLabel").value = bin.label || "";
-  document.getElementById("binRoom").value = bin.room || "";
+  populateRoomSelect(document.getElementById("binRoom"), document.getElementById("binRoomOther"), bin.room || "");
   document.getElementById("binNotes").value = bin.notes || "";
   document.getElementById("printId").textContent = bin.id;
   document.getElementById("printLabel").textContent = bin.label || "";
@@ -94,11 +95,20 @@ async function loadBin() {
   document.getElementById("printNotes").textContent = bin.notes || "";
 
   const url = binUrl(bin.id);
-  QRCode.toCanvas(document.createElement("canvas"), url, { width: 180 }, (err, canvas) => {
-    if (!err) { document.getElementById("qrCanvasWrap").innerHTML = ""; document.getElementById("qrCanvasWrap").appendChild(canvas); }
+  const qrCanvas = document.createElement("canvas");
+  QRCode.toCanvas(qrCanvas, url, { width: 180 }, (err) => {
+    if (err) { console.error("QR generation failed:", err); return; }
+    const wrap = document.getElementById("qrCanvasWrap");
+    wrap.innerHTML = "";
+    wrap.appendChild(qrCanvas);
   });
-  QRCode.toCanvas(document.createElement("canvas"), url, { width: 160 }, (err, canvas) => {
-    if (!err) { document.getElementById("printQr").innerHTML = ""; document.getElementById("printQr").appendChild(canvas); }
+
+  const printCanvas = document.createElement("canvas");
+  QRCode.toCanvas(printCanvas, url, { width: 160 }, (err) => {
+    if (err) { console.error("QR generation failed:", err); return; }
+    const wrap = document.getElementById("printQr");
+    wrap.innerHTML = "";
+    wrap.appendChild(printCanvas);
   });
 
   loadItems();
@@ -108,7 +118,7 @@ async function loadBin() {
 async function saveBinMeta() {
   const status = document.getElementById("metaStatus");
   const label = document.getElementById("binLabel").value.trim();
-  const room = document.getElementById("binRoom").value.trim();
+  const room = resolveRoomValue(document.getElementById("binRoom"), document.getElementById("binRoomOther"));
   const notes = document.getElementById("binNotes").value.trim();
   if (!label) { showStatus(status, "Label can't be empty.", true); return; }
   const { error } = await sb.from("bins").update({ label, room, notes }).eq("id", binId);
