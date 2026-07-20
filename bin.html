@@ -95,21 +95,29 @@ async function loadBin() {
   document.getElementById("printNotes").textContent = bin.notes || "";
 
   const url = binUrl(bin.id);
-  const qrCanvas = document.createElement("canvas");
-  QRCode.toCanvas(qrCanvas, url, { width: 180 }, (err) => {
-    if (err) { console.error("QR generation failed:", err); return; }
-    const wrap = document.getElementById("qrCanvasWrap");
-    wrap.innerHTML = "";
-    wrap.appendChild(qrCanvas);
-  });
+  try {
+    if (typeof QRCode === "undefined") {
+      console.error("QR library (QRCode global) never loaded. Check network tab for a failed request to cdn.jsdelivr.net, or an ad blocker/extension blocking it.");
+    } else {
+      const qrCanvas = document.createElement("canvas");
+      QRCode.toCanvas(qrCanvas, url, { width: 180 }, (err) => {
+        if (err) { console.error("QR generation failed:", err); return; }
+        const wrap = document.getElementById("qrCanvasWrap");
+        wrap.innerHTML = "";
+        wrap.appendChild(qrCanvas);
+      });
 
-  const printCanvas = document.createElement("canvas");
-  QRCode.toCanvas(printCanvas, url, { width: 160 }, (err) => {
-    if (err) { console.error("QR generation failed:", err); return; }
-    const wrap = document.getElementById("printQr");
-    wrap.innerHTML = "";
-    wrap.appendChild(printCanvas);
-  });
+      const printCanvas = document.createElement("canvas");
+      QRCode.toCanvas(printCanvas, url, { width: 160 }, (err) => {
+        if (err) { console.error("QR generation failed:", err); return; }
+        const wrap = document.getElementById("printQr");
+        wrap.innerHTML = "";
+        wrap.appendChild(printCanvas);
+      });
+    }
+  } catch (qrErr) {
+    console.error("QR block threw an error, but the rest of the page will still load:", qrErr);
+  }
 
   loadItems();
   loadPhotos();
