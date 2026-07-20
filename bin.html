@@ -59,14 +59,25 @@
     <div style="margin-top:8px; font-size:13px;">Scan to open this bin's live page</div>
   </div>
 
-  <!-- Print-only shipping label -->
+  <!-- Print-only shipping labels, sized for Avery 8426 (5.5in x 8.5in, 2 per sheet, stacked) -->
   <div class="print-label">
-    <div style="border:3px solid #000; padding:20px; max-width:400px; margin:0 auto; text-align:center;">
-      <div style="font-size:11px; letter-spacing:2px;">HOUSEHOLD GOODS &mdash; BIN #<span id="printId"></span></div>
-      <h2 id="printLabel" style="margin:10px 0 4px;"></h2>
-      <div id="printRoom" style="text-transform:uppercase; letter-spacing:1px; font-size:13px; margin-bottom:14px;"></div>
-      <div id="printQr"></div>
-      <div id="printNotes" style="margin-top:10px; font-size:12px;"></div>
+    <div class="avery-8426-slot">
+      <div class="avery-8426-content">
+        <div class="label-eyebrow">HOUSEHOLD GOODS &mdash; BIN #<span class="print-id"></span></div>
+        <h2 class="print-label-text"></h2>
+        <div class="label-room"></div>
+        <div class="label-qr"></div>
+        <div class="label-notes"></div>
+      </div>
+    </div>
+    <div class="avery-8426-slot">
+      <div class="avery-8426-content">
+        <div class="label-eyebrow">HOUSEHOLD GOODS &mdash; BIN #<span class="print-id"></span></div>
+        <h2 class="print-label-text"></h2>
+        <div class="label-room"></div>
+        <div class="label-qr"></div>
+        <div class="label-notes"></div>
+      </div>
     </div>
   </div>
 
@@ -100,10 +111,10 @@ async function loadBin() {
   document.getElementById("binLabel").value = bin.label || "";
   populateRoomSelect(document.getElementById("binRoom"), document.getElementById("binRoomOther"), bin.room || "");
   document.getElementById("binNotes").value = bin.notes || "";
-  document.getElementById("printId").textContent = bin.id;
-  document.getElementById("printLabel").textContent = bin.label || "";
-  document.getElementById("printRoom").textContent = bin.room || "";
-  document.getElementById("printNotes").textContent = bin.notes || "";
+  document.querySelectorAll(".print-id").forEach(el => el.textContent = bin.id);
+  document.querySelectorAll(".print-label-text").forEach(el => el.textContent = bin.label || "");
+  document.querySelectorAll(".label-room").forEach(el => el.textContent = bin.room || "");
+  document.querySelectorAll(".label-notes").forEach(el => el.textContent = bin.notes || "");
 
   const url = binUrl(bin.id);
   try {
@@ -118,12 +129,20 @@ async function loadBin() {
         wrap.appendChild(qrCanvas);
       });
 
-      const printCanvas = document.createElement("canvas");
-      QRCode.toCanvas(printCanvas, url, { width: 160 }, (err) => {
+      // Render once at print resolution, then reuse the same image in both
+      // Avery 8426 label slots (a canvas element can't exist in two places
+      // at once, but an <img> pointed at its data URL can).
+      const printSourceCanvas = document.createElement("canvas");
+      QRCode.toCanvas(printSourceCanvas, url, { width: 260 }, (err) => {
         if (err) { console.error("QR generation failed:", err); return; }
-        const wrap = document.getElementById("printQr");
-        wrap.innerHTML = "";
-        wrap.appendChild(printCanvas);
+        const dataUrl = printSourceCanvas.toDataURL("image/png");
+        document.querySelectorAll(".label-qr").forEach(wrap => {
+          wrap.innerHTML = "";
+          const img = document.createElement("img");
+          img.src = dataUrl;
+          img.alt = "QR code";
+          wrap.appendChild(img);
+        });
       });
     }
   } catch (qrErr) {
@@ -142,10 +161,10 @@ async function saveBinMeta() {
   if (!label) { showStatus(status, "Label can't be empty.", true); return; }
   const { error } = await sb.from("bins").update({ label, room, notes }).eq("id", binId);
   if (error) { showStatus(status, error.message, true); return; }
-  document.getElementById("printId").textContent = binId;
-  document.getElementById("printLabel").textContent = label;
-  document.getElementById("printRoom").textContent = room;
-  document.getElementById("printNotes").textContent = notes;
+  document.querySelectorAll(".print-id").forEach(el => el.textContent = binId);
+  document.querySelectorAll(".print-label-text").forEach(el => el.textContent = label);
+  document.querySelectorAll(".label-room").forEach(el => el.textContent = room);
+  document.querySelectorAll(".label-notes").forEach(el => el.textContent = notes);
   showStatus(status, "Saved.", false);
 }
 
