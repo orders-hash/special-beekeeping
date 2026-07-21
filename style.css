@@ -182,8 +182,10 @@ button.danger:hover { background: var(--danger); color: var(--card); }
 
 @media print {
   header, .searchbar, .panel, .no-print { display: none !important; }
-  body { background: white; }
-  .print-label { display: block !important; }
+  body { background: white; margin: 0; }
+  html, body { height: auto; }
+  .wrap { max-width: none; margin: 0; padding: 0; }
+  .print-label { display: block !important; margin: 0; padding: 0; }
 
   @page {
     size: letter;
