@@ -54,7 +54,7 @@
     <div class="status" id="photoStatus"></div>
   </div>
 
-  <div class="qr-block">
+  <div class="qr-block no-print">
     <div id="qrCanvasWrap"></div>
     <div style="margin-top:8px; font-size:13px;">Scan to open this bin's live page</div>
   </div>
@@ -63,7 +63,8 @@
   <div class="print-label">
     <div class="avery-8426-slot">
       <div class="avery-8426-content">
-        <div class="label-eyebrow">HOUSEHOLD GOODS &mdash; BIN #<span class="print-id"></span></div>
+        <div class="label-eyebrow">BIN</div>
+        <div class="label-binnumber print-id"></div>
         <h2 class="print-label-text"></h2>
         <div class="label-room"></div>
         <div class="label-qr"></div>
@@ -72,7 +73,8 @@
     </div>
     <div class="avery-8426-slot">
       <div class="avery-8426-content">
-        <div class="label-eyebrow">HOUSEHOLD GOODS &mdash; BIN #<span class="print-id"></span></div>
+        <div class="label-eyebrow">BIN</div>
+        <div class="label-binnumber print-id"></div>
         <h2 class="print-label-text"></h2>
         <div class="label-room"></div>
         <div class="label-qr"></div>
@@ -114,7 +116,10 @@ async function loadBin() {
   document.querySelectorAll(".print-id").forEach(el => el.textContent = bin.id);
   document.querySelectorAll(".print-label-text").forEach(el => el.textContent = bin.label || "");
   document.querySelectorAll(".label-room").forEach(el => el.textContent = bin.room || "");
-  document.querySelectorAll(".label-notes").forEach(el => el.textContent = bin.notes || "");
+  document.querySelectorAll(".label-notes").forEach(el => {
+    el.textContent = bin.notes || "";
+    el.style.display = bin.notes ? "block" : "none";
+  });
 
   const url = binUrl(bin.id);
   try {
@@ -164,7 +169,10 @@ async function saveBinMeta() {
   document.querySelectorAll(".print-id").forEach(el => el.textContent = binId);
   document.querySelectorAll(".print-label-text").forEach(el => el.textContent = label);
   document.querySelectorAll(".label-room").forEach(el => el.textContent = room);
-  document.querySelectorAll(".label-notes").forEach(el => el.textContent = notes);
+  document.querySelectorAll(".label-notes").forEach(el => {
+    el.textContent = notes;
+    el.style.display = notes ? "block" : "none";
+  });
   showStatus(status, "Saved.", false);
 }
 
