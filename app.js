@@ -100,6 +100,45 @@ function resolveRoomValue(selectEl, otherInputEl) {
   return selectEl.value === "__other__" ? otherInputEl.value.trim() : selectEl.value;
 }
 
+function csvEscape(val) {
+  const s = String(val ?? "");
+  if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+async function exportInventoryCsv() {
+  const { data: bins, error } = await sb
+    .from("bins")
+    .select("id, label, room, notes, items(name), photos(id)")
+    .order("id");
+
+  if (error) { alert("Export failed: " + error.message); return; }
+
+  const rows = [["Bin #", "Bin Label", "Room", "Item", "Bin Notes", "Photo Count"]];
+
+  bins.forEach(b => {
+    const photoCount = (b.photos || []).length;
+    if (!b.items || !b.items.length) {
+      rows.push([b.id, b.label, b.room || "", "", b.notes || "", photoCount]);
+    } else {
+      b.items.forEach(i => {
+        rows.push([b.id, b.label, b.room || "", i.name, b.notes || "", photoCount]);
+      });
+    }
+  });
+
+  const csv = rows.map(r => r.map(csvEscape).join(",")).join("\r\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const stamp = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `move-inventory-${stamp}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 function binUrl(binId) {
   const base = window.location.origin + window.location.pathname.replace(/index\.html$|bin\.html$/, "");
   return `${base}bin.html?id=${binId}`;

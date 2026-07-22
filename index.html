@@ -11,6 +11,7 @@
 <header>
   <h1><span class="tag">HH-GOODS</span>Move Inventory</h1>
   <div class="row no-print" style="flex:0;">
+    <button class="secondary" onclick="exportInventoryCsv()">Export CSV</button>
     <button class="secondary" onclick="toggleAddForm()">+ New Bin</button>
     <button class="secondary" onclick="signOut()">Sign Out</button>
   </div>
@@ -31,7 +32,8 @@
     <div class="row">
       <div class="field">
         <label>Room / destination</label>
-        <input type="text" id="newRoom" placeholder="e.g. Kitchen">
+        <select id="newRoom"></select>
+        <input type="text" id="newRoomOther" placeholder="Type room name" style="display:none; margin-top:6px;">
       </div>
       <div class="field">
         <label>Notes</label>
@@ -55,11 +57,12 @@
 function toggleAddForm() {
   const p = document.getElementById("addPanel");
   p.style.display = p.style.display === "none" ? "block" : "none";
+  populateRoomSelect(document.getElementById("newRoom"), document.getElementById("newRoomOther"), "");
 }
 
 async function createBin() {
   const label = document.getElementById("newLabel").value.trim();
-  const room = document.getElementById("newRoom").value.trim();
+  const room = resolveRoomValue(document.getElementById("newRoom"), document.getElementById("newRoomOther"));
   const notes = document.getElementById("newNotes").value.trim();
   const status = document.getElementById("addStatus");
   if (!label) { showStatus(status, "Give the bin a label first.", true); return; }
