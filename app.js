@@ -109,20 +109,19 @@ function csvEscape(val) {
 async function exportInventoryCsv() {
   const { data: bins, error } = await sb
     .from("bins")
-    .select("id, label, room, notes, items(name), photos(id)")
+    .select("id, label, room, notes, items(name)")
     .order("id");
 
   if (error) { alert("Export failed: " + error.message); return; }
 
-  const rows = [["Bin #", "Bin Label", "Room", "Item", "Bin Notes", "Photo Count"]];
+  const rows = [["Bin #", "Bin Label", "Room", "Item", "Bin Notes"]];
 
   bins.forEach(b => {
-    const photoCount = (b.photos || []).length;
     if (!b.items || !b.items.length) {
-      rows.push([b.id, b.label, b.room || "", "", b.notes || "", photoCount]);
+      rows.push([b.id, b.label, b.room || "", "", b.notes || ""]);
     } else {
       b.items.forEach(i => {
-        rows.push([b.id, b.label, b.room || "", i.name, b.notes || "", photoCount]);
+        rows.push([b.id, b.label, b.room || "", i.name, b.notes || ""]);
       });
     }
   });
@@ -136,8 +135,10 @@ async function exportInventoryCsv() {
   a.download = `move-inventory-${stamp}.csv`;
   document.body.appendChild(a);
   a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  setTimeout(() => {
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, 1000);
 }
 function binUrl(binId) {
   const base = window.location.origin + window.location.pathname.replace(/index\.html$|bin\.html$/, "");
